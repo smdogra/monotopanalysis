@@ -21,7 +21,7 @@ cd root_numpy
 
 python setup.py install --user
 
-Compile the packages, go back to your Panda's cloned directory.
+Compile the packages, go back to your Panda's cloned directory in CMSSW.
 
 cd PandaCore
 
