@@ -7,7 +7,7 @@ cd CMSSW_8_0_26_patch1/src
 
 cmsenv
 
-git clone -b git@github.com:smdogra/monotopanalysis.git
+git clone  git@github.com:smdogra/monotopanalysis.git
 
 mv monotopanalysis/*  .
 
