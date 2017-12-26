@@ -1,0 +1,89 @@
+<require panda>
+
+[XPhoton>Photon]
+enum IDTune {
+  kSpring15,
+  kSpring16,
+  kGJetsCWIso,
+  kZGCWIso
+};
+scEta/F
+scRawPt/F
+chIsoX[nIDTunes]/F
+chIsoMaxX[nIDTunes]/F
+nhIsoX[nIDTunes]/F
+phIsoX[nIDTunes]/F
+e4/F
+isEB/O
+looseX[nIDTunes]/O
+mediumX[nIDTunes]/O
+tightX[nIDTunes]/O
+matchedGenId/I
+bool passCHIso(UInt_t wp, UInt_t t) const { return chIsoX[t] < chIsoCuts[t][isEB ? 0 : 1][wp]; }
+bool passCHIsoMax(UInt_t wp, UInt_t t) const { return chIsoMaxX[t] < chIsoCuts[t][isEB ? 0 : 1][wp]; }
+bool passNHIso(UInt_t wp, UInt_t t) const { return nhIsoX[t] < nhIsoCuts[t][isEB ? 0 : 1][wp]; }
+bool passPhIso(UInt_t wp, UInt_t t) const { return phIsoX[t] < phIsoCuts[t][isEB ? 0 : 1][wp]; }
+bool passSieie(UInt_t wp, UInt_t t) const { return sieie < sieieCuts[t][isEB ? 0 : 1][wp]; }
+bool passHOverE(UInt_t wp, UInt_t t) const { return hOverE < hOverECuts[t][isEB ? 0 : 1][wp]; }
+static double const chIsoCuts[nIDTunes][2][4] = {
+  {{3.32, 1.37, 0.76, 5.0}, {1.97, 1.10, 0.56, 5.0}},
+  {{1.295, 0.441, 0.202, 5.0}, {1.011, 0.442, 0.034, 5.0}},
+  {{1.295, 1.146, 0.202, 5.0}, {1.011, 0.442, 0.034, 5.0}},
+  {{1.295, 1.163, 0.202, 5.0}, {1.011, 0.442, 0.034, 5.0}}
+};
+static double const nhIsoCuts[nIDTunes][2][4] = {
+  {{1.92, 1.06, 0.97, 100000.}, {11.86, 2.69, 2.09, 100000.}},
+  {{10.910, 2.725, 0.264, 100000.}, {5.931, 1.715, 0.586, 100000.}},
+  {{10.910, 2.792, 0.264, 100000.}, {5.931, 1.715, 0.586, 100000.}},
+  {{10.910, 7.005, 0.264, 100000.}, {5.931, 1.715, 0.586, 100000.}}
+};
+static double const phIsoCuts[nIDTunes][2][4] = {
+  {{0.81, 0.28, 0.08, 2.75}, {0.83, 0.39, 0.16, 2.00}},
+  {{3.630, 2.571, 2.362, 2.75}, {6.641, 3.863, 2.617, 2.00}},
+  {{3.630, 2.176, 2.362, 2.75}, {6.641, 3.863, 2.617, 2.00}},
+  {{3.630, 3.271, 2.362, 2.75}, {6.641, 3.863, 2.617, 2.00}}
+};
+static double const sieieCuts[nIDTunes][2][4] = {
+  {{0.0102, 0.0102, 0.0100, 0.0105}, {0.0274, 0.0268, 0.0268, 0.028}},
+  {{0.01031, 0.01022, 0.00994, 0.0105}, {0.03013, 0.03001, 0.03000, 0.028}},
+  {{0.01031, 0.0104, 0.00994, 0.0105}, {0.03013, 0.03001, 0.03000, 0.028}},
+  {{0.01031, 0.01002, 0.00994, 0.0105}, {0.03013, 0.03001, 0.03000, 0.028}}
+};
+static double const hOverECuts[nIDTunes][2][4] = {
+  {{0.05, 0.05, 0.05, 0.05}, {0.05, 0.05, 0.05, 0.05}},
+  {{0.0597, 0.0396, 0.0269, 0.05}, {0.0481, 0.0219, 0.0213, 0.05}},
+  {{0.0597, 0.026, 0.0269, 0.05}, {0.0481, 0.0219, 0.0213, 0.05}},
+  {{0.0597, 0.0263, 0.0269, 0.05}, {0.0481, 0.0219, 0.0213, 0.05}}
+};
+
+{EventMonophoton>EventBase}
+npv/s
+npvTrue/s
+rho/F
+rhoCentralCalo/F
+genReweight/GenReweight
+pfCandidates/PFCandCollection(2048)
+vertices/RecoVertexCollection(64)
+superClusters/SuperClusterCollection(64)
+electrons/ElectronCollection(32)
+muons/MuonCollection(32)
+taus/TauCollection(64)
+photons/XPhotonCollection(32)
+jets/JetCollection(64)
+genJets/GenJetCollection(64)
+genParticles/UnpackedGenParticleCollection(256)
+genVertex/Vertex
+partons/PartonCollection(8)
+t1Met/RecoMet
+rawMet/Met
+caloMet/Met
+metMuOnlyFix/RecoMet
+metNoFix/RecoMet
+metFilters/MetFilters
+pfCandidates.vertex->vertices
+electrons.superCluster->superClusters
+photons.superCluster->superClusters
+jets.constituents->pfCandidates
+genParticles.parent->genParticles
+jets.matchedGenJet->genJets
+#include "Event.h"

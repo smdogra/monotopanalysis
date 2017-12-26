@@ -1,0 +1,554 @@
+% INCLUDES
+
+#include "TLorentzVector.h"
+#include "TVector2.h"
+
+#include <cmath>
+
+% CONSTANTS
+
+% OBJECTS
+
+[Particle]
+TLorentzVector p4() const { TLorentzVector p4; p4.SetPtEtaPhiM(pt(), eta(), phi(), m()); return p4; }
+double e() const { return std::sqrt(std::pow(pt() * std::cosh(eta()), 2.) + m() * m()); }
+double p() const { return pt() * std::cosh(eta()); }
+double px() const { return pt() * std::cos(phi()); }
+double py() const { return pt() * std::sin(phi()); }
+double pz() const { return pt() * std::sinh(eta()); }
+virtual double pt() const = 0;
+virtual double eta() const = 0;
+virtual double phi() const = 0;
+virtual double m() const = 0;
+double dEta(Particle const& p) const { return eta() - p.eta(); }
+double dPhi(Particle const& p) const { return TVector2::Phi_mpi_pi(phi() - p.phi()); }
+double dR2(Particle const& p) const { double d1(dEta(p)); double d2(dPhi(p)); return d1 * d1 + d2 * d2; }
+double dR(Particle const& p) const { return std::sqrt(dR2(p)); }
+virtual void setPtEtaPhiM(double pt, double eta, double phi, double m) = 0;
+virtual void setXYZE(double px, double py, double pz, double e) = 0;
+
+[Vertex]
+x/F
+y/F
+z/F
+TVector3 position() const { return TVector3(x, y, z); }
+
+[RecoVertex>Vertex]
+score/F
+ntrk/s
+ndof/F
+chi2/F
+pfRangeMax/s
+double normChi2() const { return ndof != 0. ? chi2 / ndof : chi2 * 1.e+6; }
+
+[PackedTrack]
+packedPtError/s
+packedDxy/S
+packedDz/S
+packedDPhi/S
+void setPtError(double e) { ptError_ = e; packPtError_(); }
+double ptError() const { unpack_(); return ptError_; }
+double dxy() const { unpack_(); return dxy_; }
+double dz() const { unpack_(); return dz_; }
+double dPhi() const { unpack_(); return dPhi_; }
+
+[SuperCluster]
+rawPt/F
+eta/F
+phi/F
+
+[PackedParticle>Particle]
+packedPt/s
+packedEta/S
+packedPhi/S
+packedM/s
+double pt() const override { unpack_(); return pt_; }
+double eta() const override { unpack_(); return eta_; }
+double phi() const override { unpack_(); return phi_; }
+double m() const override { unpack_(); return mass_; }
+void setPtEtaPhiM(double pt, double eta, double phi, double m) override;
+void setXYZE(double px, double py, double pz, double e) override;
+
+[GenParticle>PackedParticle]
+enum StatusFlag {
+  kIsPrompt,
+  kIsDecayedLeptonHadron,
+  kIsTauDecayProduct,
+  kIsPromptTauDecayProduct,
+  kIsDirectTauDecayProduct,
+  kIsDirectPromptTauDecayProduct,
+  kIsDirectHadronDecayProduct,
+  kIsHardProcess,
+  kFromHardProcess,
+  kIsHardProcessTauDecayProduct,
+  kIsDirectHardProcessTauDecayProduct,
+  kFromHardProcessBeforeFSR,
+  kIsFirstCopy,
+  kIsLastCopy,
+  kIsLastCopyBeforeFSR
+};
+pdgid/I
+finalState/O
+statusFlags/s
+parent/GenParticleRef
+bool testFlag(StatusFlag f) const { return ((statusFlags >> f) & 1) == 1; }
+
+[PFCand>PackedParticle]
+packedPuppiW/B
+packedPuppiWNoLepDiff/B
+ptype/b
+vertex/RecoVertexRef/!
+track/PackedTrackRef/!
+double puppiW() const { unpack_(); return puppiW_; }
+double puppiWNoLep() const { unpack_(); return puppiWNoLep_; }
+void setPuppiW(double w, double wnl);
+TLorentzVector puppiP4() const { TLorentzVector p4; p4.SetPtEtaPhiM(pt() * puppiW(), eta(), phi(), m() * puppiW()); return p4; }
+TLorentzVector puppiNoLepP4() const { TLorentzVector p4; p4.SetPtEtaPhiM(pt() * puppiWNoLep(), eta(), phi(), m() * puppiWNoLep()); return p4; }
+int q() const { return q_[ptype]; }
+int pdgId() const { return pdgId_[ptype]; }
+TVector3 pca() const;
+double dxy(TVector3 const&) const;
+double dz(TVector3 const&) const;
+enum PType {
+  hp,
+  hm,
+  ep,
+  em,
+  mup,
+  mum,
+  gamma,
+  h0,
+  h_HF,
+  egamma_HF,
+  Xp,
+  Xm,
+  X
+};
+static const int q_[nPTypes] = {1, -1, 1, -1, 1, -1, 0, 0, 0, 0, 1, -1, 0};
+static const int pdgId_[nPTypes] = {211, -211, -11, 11, -13, 13, 22, 130, 1, 2, 0, 0, 0};
+
+[ParticleP>Particle]
+pt_/F
+eta_/F
+phi_/F
+double pt() const override { return pt_; }
+double eta() const override { return eta_; }
+double phi() const override { return phi_; }
+double m() const override { return 0.; }
+void setPtEtaPhiM(double pt, double eta, double phi, double) override
+{
+  pt_ = pt;
+  eta_ = eta;
+  phi_ = phi;
+}
+void setXYZE(double px, double py, double pz, double) override
+{
+  pt_ = std::sqrt(px * px + py * py);
+  double p(std::sqrt(px * px + py * py + pz * pz));
+  eta_ = 0.5 * std::log((p + pz) / (p - pz));
+  phi_ = std::atan2(py, px);
+}
+
+[ParticleM>ParticleP]
+mass_/F
+double m() const override { return mass_; }
+void setPtEtaPhiM(double pt, double eta, double phi, double m) override
+{
+  pt_ = pt;
+  eta_ = eta;
+  phi_ = phi;
+  mass_ = m;
+}
+void setXYZE(double px, double py, double pz, double e) override
+{
+  pt_ = std::sqrt(px * px + py * py);
+  double p(std::sqrt(px * px + py * py + pz * pz));
+  eta_ = 0.5 * std::log((p + pz) / (p - pz));
+  phi_ = std::atan2(py, px);
+  mass_ = std::sqrt(e * e - p * p);
+}
+
+[UnpackedPFCand>ParticleM]
+puppiW/B
+puppiWNoLep/B
+ptype/b
+vertex/RecoVertexRef
+TLorentzVector puppiP4() const { TLorentzVector p4; p4.SetPtEtaPhiM(pt() * puppiW, eta(), phi(), m() * puppiW); return p4; }
+TLorentzVector puppiNoLepP4() const { TLorentzVector p4; p4.SetPtEtaPhiM(pt() * puppiWNoLep, eta(), phi(), m() * puppiWNoLep); return p4; }
+int q() const { return PFCand::q_[ptype]; }
+int pdgId() const { return PFCand::pdgId_[ptype]; }
+#include "PFCand.h"
+
+[Parton>ParticleM]
+pdgid/I
+
+[UnpackedGenParticle>ParticleM]
+pdgid/I
+finalState/O
+statusFlags/s
+parent/UnpackedGenParticleRef
+bool testFlag(GenParticle::StatusFlag f) const { return ((statusFlags >> f) & 1) == 1; }
+#include "GenParticle.h"
+
+[Lepton>ParticleP]
+pfPt/F = -1. // for E: Pt of the dR-closest PF candidate; for Mu: pfP4().pt()
+charge/B
+loose/O
+medium/O
+tight/O
+chIso/F
+nhIso/F
+phIso/F
+puIso/F
+matchedPF/PFCandRef
+matchedGen/GenParticleRef
+vertex/VertexRef
+virtual double combIso() const { return 0.; }
+
+[Electron>Lepton]
+enum TriggerObject {
+  fEl23El12FirstLeg,
+  fEl23El12SecondLeg,
+  fEl25Tight,
+  fEl27Loose,
+  fEl27Tight,
+  fEl120Ph,
+  fEl135Ph,
+  fEl165HE10Ph,
+  fEl175Ph,
+  fEl22EBR9IsoPh,
+  fEl36EBR9IsoPh,
+  fEl50EBR9IsoPh,
+  fEl75EBR9IsoPh,
+  fEl90EBR9IsoPh,
+  fEl120EBR9IsoPh
+};
+hltsafe/O
+chIsoPh/F
+nhIsoPh/F
+phIsoPh/F
+ecalIso/F
+hcalIso/F
+isoPUOffset/F
+sieie/F
+sipip/F
+eseed/F
+hOverE/F
+regPt/F
+smearedPt/F
+originalPt/F = -1.
+dxy/F
+dz/F
+veto/O
+triggerMatch[nTriggerObjects]/O
+superCluster/SuperClusterRef
+double m() const override { return 5.109989e-4; }
+double combIso() const override { return chIso + std::max(nhIso + phIso - isoPUOffset, Float_t(0.)); }
+
+[Muon>Lepton]
+enum TriggerObject {
+  fMu17Mu8FirstLeg,
+  fMu17Mu8SecondLeg,
+  fIsoMu22er,
+  fIsoTkMu22er,
+  fIsoMu24,
+  fIsoTkMu24
+};
+mediumBtoF/O
+triggerMatch[nTriggerObjects]/O
+double m() const override { return 1.05658e-2; }
+double combIso() const override { return chIso + std::max(nhIso + phIso - 0.5 * puIso, 0.); }
+
+[Tau>ParticleM]
+charge/B
+decayMode/O
+decayModeNew/O
+looseIsoMVA/O
+looseIsoMVAOld/O
+iso/F
+isoDeltaBetaCorr/F
+vertex/VertexRef
+matchedGen/GenParticleRef
+
+[Photon>ParticleP]
+enum TriggerObject {
+  fSEG34IorSEG40,
+  fSEG40IorSJet200,
+  fSEG34IorSEG40IorSJet200,
+  fSEG24,
+  fSEG30,
+  fSEG40,
+  fPh120,
+  fPh135,
+  fPh165HE10,
+  fPh175,
+  fPh22EBR9Iso,
+  fPh36EBR9Iso,
+  fPh50EBR9Iso,
+  fPh75EBR9Iso,
+  fPh90EBR9Iso,
+  fPh120EBR9Iso
+};
+pfPt/F = -1. // Pt of the dR-closest PF candidate
+chIso/F
+chIsoMax/F
+nhIso/F
+phIso/F
+sieie/F
+sipip/F
+hOverE/F
+genIso/F
+mipEnergy/F
+emax/F
+e2nd/F
+eleft/F
+eright/F
+etop/F
+ebottom/F
+r9/F
+etaWidth/F
+phiWidth/F
+time/F
+timeSpan/F
+regPt/F
+smearedPt/F
+originalPt/F = -1.
+loose/O
+medium/O
+tight/O
+highpt/O
+pixelVeto/O
+csafeVeto/O
+triggerMatch[nTriggerObjects]/O
+superCluster/SuperClusterRef
+matchedPF/PFCandRef
+matchedGen/GenParticleRef
+
+[GenJet>ParticleM]
+pdgid/S
+
+[MicroJet>ParticleM]
+csv/F
+qgl/F
+
+[Jet>MicroJet]
+rawPt/F
+ptCorrUp/F
+ptCorrDown/F
+ptSmear/F
+ptSmearUp/F
+ptSmearDown/F
+area/F
+nhf/F
+chf/F
+puid/F
+loose/O
+tight/O
+monojet/O
+matchedGenJet/GenJetRef
+constituents/PFCandRefVector
+
+[FatJet>Jet]
+tau1/F
+tau2/F
+tau3/F
+mSD/F
+mPruned/F
+tau1SD/F = -1.
+tau2SD/F = -1.
+tau3SD/F = -1.
+htt_mass/F
+htt_frec/F
+double_sub/F
+ecfs[3][4][4]/F
+subjets/MicroJetRefVector
+double get_ecf(int o_, int N_, int ib_) const
+{
+  if (o_<1 || o_>3 || N_<1 || N_>4 || ib_<0 || ib_>3) 
+    return -1.;
+  return ecfs[o_-1][N_-1][ib_];
+}
+bool set_ecf(int o_, int N_, int ib_, float x_)
+{
+  if (o_<1 || o_>3 || N_<1 || N_>4 || ib_<0 || ib_>3) 
+    return false;
+  ecfs[o_-1][N_-1][ib_] = x_;
+  return true;
+}
+
+[Met:SINGLE]
+pt/F
+phi/F
+virtual TVector2 v() const { TVector2 vec; vec.SetMagPhi(pt, phi); return vec; }
+void setXY(double x, double y) { pt = std::sqrt(x * x + y * y); phi = std::atan2(y, x); }
+
+[RecoMet>Met]
+sumETRaw/F
+ptCorrUp/F
+phiCorrUp/F
+ptCorrDown/F
+phiCorrDown/F
+ptUnclUp/F
+phiUnclUp/F
+ptUnclDown/F
+phiUnclDown/F
+virtual TVector2 vCorr(int corr = 0) const
+{
+  if (corr == 0)
+    return v();
+
+  TVector2 vec;
+  switch (corr) {
+  case 1:
+    vec.SetMagPhi(ptCorrUp, phiCorrUp);
+    break;
+  case -1:
+    vec.SetMagPhi(ptCorrDown, phiCorrDown);
+    break;
+  }
+  return vec;
+}
+
+[MetFilters:SINGLE]
+globalHalo16/O
+hbhe/O
+hbheIso/O
+ecalDeadCell/O
+goodVertices/O
+badsc/O
+badMuons/O
+duplicateMuons/O
+dupECALClusters/O
+unfixedECALHits/O
+badPFMuons/O
+badChargedHadrons/O
+virtual bool pass() const { return !globalHalo16 && !hbhe && !hbheIso && !ecalDeadCell && !badsc && !goodVertices; }
+
+[HLTBits:SINGLE]
+words[32]/i
+void set(unsigned iB) { if (iB >= 1024) return; words[iB / 32] |= (1 << (iB % 32)); }
+bool pass(unsigned iB) const { if (iB >= 1024) return false; return (words[iB / 32] & (1 << (iB % 32))) != 0; }
+
+[GenReweight:SINGLE]
+static unsigned const NMAX = 1024;
+r1f2DW/F
+r1f5DW/F
+r2f1DW/F
+r2f2DW/F
+r5f1DW/F
+r5f5DW/F
+pdfDW/F
+genParam[NMAX]/F
+
+[Recoil:SINGLE]
+enum Category {
+  rMET,
+  rMonoMu,
+  rMonoE,
+  rDiMu,
+  rDiE,
+  rGamma
+};
+met/O
+monoMu/O
+monoE/O
+diMu/O
+diE/O
+gamma/O
+max/F
+bool any() const { return met || monoMu || monoE || diMu || diE || gamma; }
+
+{EventBase}
+runNumber/i
+lumiNumber/i
+eventNumber/i
+isData/O
+weight/F
+triggers/HLTBits
+#include "Run.h"
+#include "TList.h"
+#include "TFile.h"
+#include "TKey.h"
+
+{Event>EventBase}
+npv/s
+npvTrue/s
+rho/F
+rhoCentralCalo/F
+genReweight/GenReweight
+pfCandidates/PFCandCollection(2048)
+vertices/RecoVertexCollection(64)
+tracks/PackedTrackCollection(1024)
+superClusters/SuperClusterCollection(64)
+electrons/ElectronCollection(32)
+muons/MuonCollection(32)
+taus/TauCollection(64)
+photons/PhotonCollection(32)
+chsAK4Jets/JetCollection(64)
+puppiAK4Jets/JetCollection(64)
+chsAK8Jets/FatJetCollection(8)
+chsAK8Subjets/MicroJetCollection(64)
+chsCA15Jets/FatJetCollection(8)
+chsCA15Subjets/MicroJetCollection(64)
+puppiAK8Jets/FatJetCollection(8)
+puppiAK8Subjets/MicroJetCollection(64)
+puppiCA15Jets/FatJetCollection(8)
+puppiCA15Subjets/MicroJetCollection(64)
+ak4GenJets/GenJetCollection(64)
+ak8GenJets/GenJetCollection(32)
+ca15GenJets/GenJetCollection(32)
+genParticles/GenParticleCollection(256)
+genVertex/Vertex
+partons/PartonCollection(8)
+pfMet/RecoMet
+puppiMet/RecoMet
+rawMet/Met
+caloMet/Met
+noMuMet/Met
+noHFMet/Met
+trkMet/Met
+neutralMet/Met
+photonMet/Met
+hfMet/Met
+genMet/Met
+metMuOnlyFix/RecoMet
+metNoFix/RecoMet
+metFilters/MetFilters
+recoil/Recoil
+pfCandidates.vertex->vertices
+pfCandidates.track->tracks
+electrons.superCluster->superClusters
+electrons.matchedPF->pfCandidates
+electrons.matchedGen->genParticles
+electrons.vertex->vertices
+muons.matchedPF->pfCandidates
+muons.matchedGen->genParticles
+muons.vertex->vertices
+taus.matchedGen->genParticles
+taus.vertex->vertices
+photons.superCluster->superClusters
+photons.matchedPF->pfCandidates
+photons.matchedGen->genParticles
+genParticles.parent->genParticles
+chsAK4Jets.constituents->pfCandidates
+chsAK4Jets.matchedGenJet->ak4GenJets
+puppiAK4Jets.constituents->pfCandidates
+puppiAK4Jets.matchedGenJet->ak4GenJets
+chsAK8Jets.constituents->pfCandidates
+chsAK8Jets.subjets->chsAK8Subjets
+chsAK8Jets.matchedGenJet->ak8GenJets
+chsCA15Jets.constituents->pfCandidates
+chsCA15Jets.subjets->chsCA15Subjets
+chsCA15Jets.matchedGenJet->ca15GenJets
+puppiAK8Jets.constituents->pfCandidates
+puppiAK8Jets.subjets->puppiAK8Subjets
+puppiAK8Jets.matchedGenJet->ak8GenJets
+puppiCA15Jets.constituents->pfCandidates
+puppiCA15Jets.subjets->puppiCA15Subjets
+puppiCA15Jets.matchedGenJet->ca15GenJets
+
+{Run}
+runNumber/i
+hltMenu/i
+hltSize/s/!
+#include "TList.h"

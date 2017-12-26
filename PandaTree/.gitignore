@@ -1,0 +1,13 @@
+*.pyc
+*__init__.py
+!lib/panda/__init__.py
+data
+*_LinkDefDict.*
+*_ReflexDict.*
+*~
+*.root
+*.pcm
+*.so
+*.d
+*.o
+*/src/dict*.cc
