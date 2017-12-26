@@ -1,4 +1,4 @@
-# monotopanalysis on LXPLUS
+# Making for flat nTupels for  monotopanalysis on LXPLUS  
 # cmssw releases
 
 cmsrel CMSSW_8_0_26_patch1
